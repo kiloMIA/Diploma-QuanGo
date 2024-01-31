@@ -74,6 +74,7 @@ def process_image(image_path, result_path):
         cv.imwrite(os.path.join(result_path, "warped", os.path.basename(image_path)), warped_with_stones)
     else:
         print(f"Board not found in {image_path}")
+        
 def process_dataset(dataset_path, result_path):
     for file in os.listdir(dataset_path):
         if file.lower().endswith((".png", ".jpg", ".jpeg")):
@@ -81,7 +82,7 @@ def process_dataset(dataset_path, result_path):
 
 if __name__ == "__main__":
     dataset_path = "image"
-    result_path = "result25012024"
+    result_path = "result26012024852"
 
     for folder in ["warped"]:
         os.makedirs(os.path.join(result_path, folder), exist_ok=True)
