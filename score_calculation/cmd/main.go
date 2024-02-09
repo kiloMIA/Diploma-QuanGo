@@ -1,9 +1,13 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
+	"log"
+	"net"
+
+	"google.golang.org/grpc"
+    proto "github.com/kiloMIA/Diploma-QuanGo/score_calculation"
 )
 
 const (
@@ -14,6 +18,34 @@ const (
 
 type Board struct {
     grid [][]int
+}
+
+type server struct {
+    proto.UnimplementedBoardServiceServer
+}
+
+func (s *server) SendBoard(ctx context.Context, req *proto.BoardRequest) (*proto.ScoreReply, error) {
+    boardSize := int(req.Size)
+    board := NewBoard(boardSize) 
+
+    for i, val := range req.Board {
+        x := i / boardSize
+        y := i % boardSize
+        switch val {
+        case 0:
+        case 1:
+            board.SetStone(x, y, Black)
+        case 2:
+            board.SetStone(x, y, White)
+        }
+    }
+
+    // Calculate and log the score
+    blackScore, whiteScore := board.CalculateScore(7.5)
+    fmt.Printf("Black: %.1f, White: %.1f\n", blackScore, whiteScore)
+
+    // Since the Python client doesn't need a response, return an empty reply
+    return &proto.ScoreReply{}, nil
 }
 
 // NewBoard creates a new board with the given size.
@@ -92,27 +124,14 @@ func (b *Board) checkTerritory(x, y int, visited [][]bool) (int, bool) {
 }
 
 func main() {
-    board := NewBoard(19)
-
-	data, err := os.ReadFile("white_won_example.json")
+    lis, err := net.Listen("tcp", ":50051")
     if err != nil {
-        panic(err)
+        log.Fatalf("Failed to listen: %v", err)
     }
-
-    var stones [][]int
-    err = json.Unmarshal(data, &stones)
-    if err != nil {
-        panic(err)
+    s := grpc.NewServer()
+    proto.RegisterBoardServiceServer(s, &server{})
+    log.Println("Server listening on :50051")
+    if err := s.Serve(lis); err != nil {
+        log.Fatalf("Failed to serve: %v", err)
     }
-
-    for x, row := range stones {
-        for y, cell := range row {
-            if cell != Empty {
-                board.SetStone(x, y, cell)
-            }
-        }
-    }
-
-    blackScore, whiteScore := board.CalculateScore(7.5) 
-    fmt.Printf("Black: %.1f, White: %.1f\n", blackScore, whiteScore)
 }

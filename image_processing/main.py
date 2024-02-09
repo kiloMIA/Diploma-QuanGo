@@ -2,7 +2,18 @@ import os
 import imutils
 import cv2 as cv
 import numpy as np
+import grpc
 from imutils.perspective import four_point_transform
+import board_pb2
+import board_pb2_grpc
+
+def send_board_state(board):
+    flattened_board = [cell for row in board for cell in row]
+    board_size = len(board)
+    with grpc.insecure_channel('score_calculation:50051') as channel:
+        stub = board_pb2_grpc.BoardServiceStub(channel)
+        stub.SendBoard(board_pb2.BoardRequest(board=flattened_board, size=board_size))
+        print("Board state sent to Go service for score calculation.")
 
 def remove_duplicates_and_close_lines(lines, threshold=10):
     if not lines:
@@ -223,6 +234,8 @@ def process_image(image_path, result_path):
         print("Board Array:")
         for row in board_array:
             print(row)
+        board_array = populate_board(stones, warped.shape[:2], board_size)
+        send_board_state(board_array)
     else:
         print(f"Board not found in {image_path}")
 
@@ -233,7 +246,8 @@ def process_dataset(dataset_path, result_path):
 
 if __name__ == "__main__":
     dataset_path = "image"
-    result_path = "result060220241939"
+    result_path = "result09022024"
     for folder in ["warped"]:
         os.makedirs(os.path.join(result_path, folder), exist_ok=True)
     process_dataset(dataset_path, result_path)
+
