@@ -31,23 +31,43 @@ def find_stones(board):
 
 def find_centroids(img, stone_color):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # Adaptive Thresholding
     if stone_color == 'B':
-        ret, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
+        thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY_INV)[1]
     else:  
-        ret, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1] 
+   # # Noise Reduction
+   # kernel = np.ones((3,3),np.uint8)
+   # opening = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=1)
+    
+    # Find contours
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+   # contours = (
+   #     contours[0]
+   #     if len(contours) == 2 
+   #     else contours[1]
+   # )
     centroids = []
 
     for contour in contours:
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            centroids.append((cx, cy))
+        # Contour Area Filtering
+        area = cv2.contourArea(contour)
+        if area > 0:
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                
+                centroids.append((cx, cy))
+                cv2.circle(img, (cx, cy), 10, (36, 255, 12), -1)
+                cv2.putText(img, 'B' if stone_color == 'B' else 'W', (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     
+    # Show the resulting image
+    cv2.imshow(f"{stone_color} stone centroids", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     return centroids
-
 def map_to_grid(centroids, image_dim, stone_color):
     board = np.full((19, 19), '0') 
     grid_spacing_x = image_dim[1] / 19
