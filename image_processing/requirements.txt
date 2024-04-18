@@ -3,3 +3,5 @@ opencv-python
 sgfmill
 imutils
 Pillow
+scipy
+scikit-image
