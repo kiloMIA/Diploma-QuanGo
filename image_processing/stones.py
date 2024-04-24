@@ -1,6 +1,6 @@
 import cv2
 import numpy as np 
-from filters import apply_watershed
+from filters import apply_dilate, apply_erode, apply_watershed, apply_clahe, apply_split_channels, filter_contours 
 from utils import auto_canny
 
 def find_stones(board):
@@ -8,12 +8,19 @@ def find_stones(board):
     black_stones = img.copy()
     white_stones = img.copy()
     shifted = cv2.pyrMeanShiftFiltering(img, 21, 51)
-    gray = cv2.cvtColor(shifted, cv2.COLOR_BGR2GRAY)
+    illuminated = apply_clahe(shifted)
 
-    blackStoneThresh, black_bin = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY_INV)
-    whiteStoneThresh, white_bin = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
+    #splitting the photo into distinct channels
+    red_channel =  apply_split_channels(illuminated, "B")
+    blue_channel = apply_split_channels(illuminated, "W")
+    
+    # thresholding for black and white stones
+    blackStoneThresh, black_bin = cv2.threshold(red_channel, 84, 255, cv2.THRESH_BINARY_INV)
+    whiteStoneThresh, white_bin = cv2.threshold(blue_channel, 173, 255, cv2.THRESH_BINARY)
+    blackDilation = apply_dilate(black_bin)
+    blackErode = apply_erode(blackDilation)
 
-    black_stones = apply_watershed(blackStoneThresh, black_bin, black_stones)
+    black_stones = apply_watershed(blackStoneThresh, blackErode, black_stones)
     white_stones = apply_watershed(whiteStoneThresh, white_bin, white_stones)
     black_centroids = find_centroids(black_stones, 'B')
     white_centroids = find_centroids(white_stones, 'W')
@@ -28,13 +35,14 @@ def find_stones(board):
     print("Combined Board Representation:")
     for row in combined_board:
         print(" ".join(row))
+    return combined_board
 
 def find_centroids(img, stone_color):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
     # Adaptive Thresholding
     if stone_color == 'B':
-        thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY_INV)[1]
+        thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)[1]
     else:  
         thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1] 
    # # Noise Reduction
@@ -68,6 +76,7 @@ def find_centroids(img, stone_color):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     return centroids
+
 def map_to_grid(centroids, image_dim, stone_color):
     board = np.full((19, 19), '0') 
     grid_spacing_x = image_dim[1] / 19
