@@ -10,3 +10,4 @@ image_processing/result09022024
 image_processing/env
 image_processing/__pycache__
 image_processing_old/image
+score_calculation/sgf_tests
