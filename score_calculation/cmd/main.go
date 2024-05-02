@@ -32,7 +32,6 @@ func main() {
 			}
 		}
 	}
-
 	fmt.Println("Identified Strings and their positions:")
 	for _, str := range strings {
 		fmt.Println("String Color:", str.Color, "Positions:", str.Positions, "Length:", len(str.Positions))
@@ -56,5 +55,13 @@ func main() {
 		for _, str := range group {
 			fmt.Printf("Color: %s, Positions: %v, Length: %d\n", str.Color, str.Positions, len(str.Positions))
 		}
+	}
+
+	influence := goban.Dilation(board, 8)
+	goban.Erosion(&influence, 21)
+
+	fmt.Println("Final Influence Map after Dilation and Erosion:")
+	for _, line := range influence {
+		fmt.Println(line)
 	}
 }
