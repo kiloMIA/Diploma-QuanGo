@@ -74,30 +74,34 @@ func exploreString(x, y int, board models.Board, visited [][]bool, color string,
 }
 
 func groupStrings(strings []models.String, board models.Board) [][]models.String {
-	groups := [][]models.String{} // This will hold groups of strings
-	used := make(map[int]bool)    // Keeps track of strings that have been grouped
+	groups := [][]models.String{}
+	used := make(map[int]bool)
+	atariStrings := make(map[int]bool) // Track strings in Atari
+
+	// First, identify strings in Atari
+	for i, str := range strings {
+		if countLiberties(str, board) == 1 { // This string is in Atari if it has exactly one liberty
+			atariStrings[i] = true
+		}
+	}
 
 	for i, str1 := range strings {
-		if used[i] {
-			continue // Skip strings that are already grouped
+		if used[i] || atariStrings[i] {
+			continue // Skip strings that are already grouped or in Atari
 		}
 
-		// Start a new group with the current string
 		newGroup := []models.String{str1}
 		used[i] = true
 
-		// Attempt to add other strings to the current group
 		for j, str2 := range strings {
-			if i != j && !used[j] {
+			if i != j && !used[j] && !atariStrings[j] { // Check connectivity only if str2 is not in Atari
 				full, half := canConnect(str1, str2, board)
-				if full || half { // If there's a full or half connection, add str2 to the group
+				if full || half {
 					newGroup = append(newGroup, str2)
 					used[j] = true
 				}
 			}
 		}
-
-		// Add the new group to the list of groups
 		groups = append(groups, newGroup)
 	}
 
@@ -152,4 +156,28 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// countLiberties calculates the number of empty adjacent positions around a string
+func countLiberties(str models.String, board models.Board) int {
+	liberties := make(map[models.Position]bool)
+	for _, pos := range str.Positions {
+		// Check all adjacent positions
+		adjacentPositions := []models.Position{
+			{X: pos.X - 1, Y: pos.Y}, // Up
+			{X: pos.X + 1, Y: pos.Y}, // Down
+			{X: pos.X, Y: pos.Y - 1}, // Left
+			{X: pos.X, Y: pos.Y + 1}, // Right
+		}
+		for _, adjPos := range adjacentPositions {
+			if isValidAndEmpty(board, adjPos.X, adjPos.Y) {
+				liberties[adjPos] = true
+			}
+		}
+	}
+	return len(liberties)
+}
+
+func isValidAndEmpty(board models.Board, x, y int) bool {
+	return x >= 0 && x < len(board) && y >= 0 && y < len(board) && board[x][y] == "0"
 }
