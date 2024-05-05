@@ -18,7 +18,6 @@ func isEmptyBetween(pos1, pos2 models.Position, board models.Board) bool {
 	return board[midX][midY] == "0"
 }
 
-
 // Additional utility function to get all surrounding positions including diagonals
 func getSurroundingPositions(pos models.Position) []models.Position {
 	return []models.Position{
@@ -35,4 +34,3 @@ func getCardinalPositions(pos models.Position) []models.Position {
 		{X: pos.X, Y: pos.Y - 1}, {X: pos.X, Y: pos.Y + 1},
 	}
 }
-
