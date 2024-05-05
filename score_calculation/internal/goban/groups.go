@@ -26,12 +26,12 @@ func ExploreString(x, y int, board models.Board, visited [][]bool, color string,
 	}
 }
 
-func GroupStrings(strings []models.String, board models.Board) [][]models.String {
-	groups := [][]models.String{}
+func GroupStrings(strings []models.String, board models.Board) []models.Group {
+	groups := []models.Group{}
 	used := make(map[int]bool)
 	atariStrings := make(map[int]bool)
 
-	// First, identify strings in Atari
+	// Identify strings in Atari
 	for i, str := range strings {
 		if countLiberties(str, board) == 1 { // This string is in Atari if it has exactly one liberty
 			atariStrings[i] = true
@@ -43,14 +43,14 @@ func GroupStrings(strings []models.String, board models.Board) [][]models.String
 			continue // Skip strings that are already grouped or in Atari
 		}
 
-		newGroup := []models.String{str1}
+		newGroup := models.Group{Strings: []models.String{str1}}
 		used[i] = true
 
 		for j, str2 := range strings {
 			if i != j && !used[j] && !atariStrings[j] { // Check connectivity only if str2 is not in Atari
 				full, half := canConnect(str1, str2, board)
 				if full || half {
-					newGroup = append(newGroup, str2)
+					newGroup.Strings = append(newGroup.Strings, str2)
 					used[j] = true
 				}
 			}
@@ -60,7 +60,6 @@ func GroupStrings(strings []models.String, board models.Board) [][]models.String
 
 	return groups
 }
-
 func canConnect(str1, str2 models.String, board models.Board) (bool, bool) {
 	// Scan all positions of str1 and check for direct adjacency or near adjacency (for potential half connections) with positions of str2
 	fullConnection := false
@@ -102,4 +101,3 @@ func abs(x int) int {
 	}
 	return x
 }
-

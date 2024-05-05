@@ -1,6 +1,8 @@
 package goban
 
-import "github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/models"
+import (
+	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/models"
+)
 
 type LibertyChangeType int
 
@@ -86,4 +88,3 @@ func countLiberties(str models.String, board models.Board) int {
 	}
 	return len(liberties)
 }
-
