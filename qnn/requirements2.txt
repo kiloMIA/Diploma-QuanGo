@@ -1,0 +1,9 @@
+numpy==1.26.3
+pillow==10.2.0
+torch
+torchaudio
+torchvision
+typing_extensions
+matplotlib
+pandas
+yaml

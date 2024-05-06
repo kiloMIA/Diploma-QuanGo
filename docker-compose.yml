@@ -1,14 +1,18 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  image_processing:
-    build: ./image_processing
-    volumes:
-      - ./image_processing:/app
-    depends_on:
-      - score_calculation
+  # image_processing:
+  #   build: ./image_processing
+  #   volumes:
+  #     - ./image_processing:/app
+  #   depends_on:
+  #     - score_calculation
 
-  score_calculation:
-    build: ./score_calculation
+  # score_calculation:
+  #   build: ./score_calculation
+  #   ports:
+  #     - "50051:50051"
+  qnn:
+    build: ./qnn
     ports:
       - "50051:50051"
