@@ -53,6 +53,17 @@ func putsOpponentInAtari(pos models.Position, currentColor string, board models.
 	return atari
 }
 
+func IsStoneInAtari(pos models.Position, board models.Board, color string) bool {
+	liberties := 0
+	directions := getCardinalPositions(pos)
+	for _, d := range directions {
+		if isValidAndEmpty(board, d.X, d.Y) {
+			liberties++
+		}
+	}
+	return liberties == 1
+}
+
 func canPlaceFriendlyStone(pos models.Position, str models.String, board models.Board, changeType LibertyChangeType) bool {
 	original := board[pos.X][pos.Y]
 	originalLiberties := countLiberties(str, board) // calculate before placing the stone
@@ -87,4 +98,16 @@ func countLiberties(str models.String, board models.Board) int {
 		}
 	}
 	return len(liberties)
+}
+
+func GetLiberties(str models.String, board models.Board) map[models.Position]bool {
+	liberties := make(map[models.Position]bool)
+	for _, pos := range str.Positions {
+		for _, adjPos := range getCardinalPositions(pos) {
+			if isValidAndEmpty(board, adjPos.X, adjPos.Y) {
+				liberties[adjPos] = true
+			}
+		}
+	}
+	return liberties
 }

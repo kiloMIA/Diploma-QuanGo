@@ -4,78 +4,33 @@ import (
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/models"
 )
 
-// CheckForSnapBack simulates a capture and checks for a snap-back opportunity.
-func CheckForSnapBack(pos models.Position, board models.Board, currentColor string) bool {
-	opponentColor := "W"
-	if currentColor == "W" {
-		opponentColor = "B"
-	}
-
-	originalStone := board[pos.Y][pos.X]
-	board[pos.Y][pos.X] = "0" // Simulate capture
-
-	if IsStoneInAtari(pos, board, currentColor) {
-		board[pos.Y][pos.X] = opponentColor // Opponent plays here
-		if IsStoneInAtari(pos, board, opponentColor) {
-			board[pos.Y][pos.X] = originalStone // Restore stone
-			return true
-		}
-	}
-
-	board[pos.Y][pos.X] = originalStone // Restore stone
-	return false
-}
-
-// CheckForSeki determines if two or more groups are in a mutual life situation (seki).
-func CheckForSeki(groups [][]models.String, board models.Board) bool {
+func CheckForSeki(groups []models.Group, board models.Board) bool {
 	for _, group := range groups {
-		sharedLiberties := make(map[models.Position]int)
-		for _, str := range group {
-			liberties := GetLiberties(str, board)
-			for pos := range liberties {
-				sharedLiberties[pos]++
-			}
-		}
-
-		for _, count := range sharedLiberties {
-			if count == len(group) && CanGroupsCaptureEachOther(group, board) {
-				return true
+		for i := 0; i < len(group.Strings); i++ {
+			for j := i + 1; j < len(group.Strings); j++ {
+				if isPotentialSeki(group.Strings[i], group.Strings[j], board) {
+					return true
+				}
 			}
 		}
 	}
 	return false
 }
 
-// Helper function to determine if groups can safely capture each other without self-atari.
-func CanGroupsCaptureEachOther(groups []models.String, board models.Board) bool {
-	for _, str := range groups {
-		if IsStoneInAtari(models.Position{X: str.Positions[0].X, Y: str.Positions[0].Y}, board, str.Color) {
-			return false
-		}
+func isPotentialSeki(str1, str2 models.String, board models.Board) bool {
+	if len(str1.Positions) < 3 || len(str2.Positions) < 3 {
+		return false
 	}
-	return true
-}
 
-// GetLiberties returns the set of liberties for a given string.
-func GetLiberties(str models.String, board models.Board) map[models.Position]bool {
-	liberties := make(map[models.Position]bool)
-	for _, pos := range str.Positions {
-		for _, adjPos := range getCardinalPositions(pos) {
-			if isValidAndEmpty(board, adjPos.X, adjPos.Y) {
-				liberties[adjPos] = true
-			}
-		}
-	}
-	return liberties
-}
+	lib1 := GetLiberties(str1, board)
+	lib2 := GetLiberties(str2, board)
 
-func IsStoneInAtari(pos models.Position, board models.Board, color string) bool {
-	liberties := 0
-	directions := getCardinalPositions(pos)
-	for _, d := range directions {
-		if isValidAndEmpty(board, d.X, d.Y) {
-			liberties++
+	sharedLiberties := 0
+	for lib := range lib1 {
+		if _, exists := lib2[lib]; exists {
+			sharedLiberties++
 		}
 	}
-	return liberties == 1
+
+	return sharedLiberties >= 2 && sharedLiberties <= 4
 }
