@@ -5,6 +5,7 @@ import (
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/goban"
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/models"
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/sgf"
+	"math"
 )
 
 func main() {
@@ -14,7 +15,6 @@ func main() {
 		fmt.Println(row)
 	}
 	fmt.Println("Result:", result)
-
 	strings := make([]models.String, 0)
 	visited := make([][]bool, len(board))
 	for i := range visited {
@@ -33,10 +33,14 @@ func main() {
 	}
 
 	groups := goban.GroupStrings(strings, board)
-
 	influence := goban.InitializeInfluence(board)
 	goban.Dilation(board, &influence, 8)
 	goban.Erosion(&influence, 21)
+
+	// Initialize scores
+	var blackScore, whiteScore float64
+	blackScore, whiteScore = 0, 0
+	komi := 6.5
 
 	fmt.Println("Grouped Strings:")
 	var aliveGroups []models.Group
@@ -60,7 +64,11 @@ func main() {
 			totalEyes += actualEyes
 			totalLiberties += int(libertyValue)
 			for _, pos := range str.Positions {
-				totalTerritory += influence[pos.Y][pos.X]
+				if str.Color == "B" {
+					blackScore += float64(influence[pos.Y][pos.X])
+				} else if str.Color == "W" {
+					whiteScore += math.Abs(float64(influence[pos.Y][pos.X]))
+				}
 			}
 		}
 
@@ -75,14 +83,22 @@ func main() {
 		}
 	}
 
+	whiteScore += komi
+
 	fmt.Println("Final Influence Map after Dilation and Erosion:")
 	for _, line := range influence {
 		fmt.Println(line)
 	}
 
 	fmt.Println("Surviving Groups After Stability Checks:")
-	for idx, group := range aliveGroups {
+	for idx := range aliveGroups {
 		fmt.Printf("Group %d: Survived\n", idx+1)
-		fmt.Print("Group: ", group)
+	}
+
+	fmt.Printf("Final Scores - Black: %.2f, White: %.2f\n", blackScore, whiteScore)
+	if blackScore > whiteScore {
+		fmt.Println("Black wins!")
+	} else {
+		fmt.Println("White wins!")
 	}
 }
