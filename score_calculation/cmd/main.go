@@ -2,19 +2,49 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/goban"
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/models"
 	"github.com/kiloMIA/Diploma-QuanGo/score_calculation/internal/sgf"
-	"math"
 )
 
 func main() {
-	board, result := sgf.ParseSGF("/home/kilo/projects/Diploma-QuanGo/score_calculation/sgf_tests/scored-games/001_001.sgf")
-	fmt.Println("Final Board State:")
+	dir := "./sgf_tests/scored-games" // Directory containing SGF files
+	outputFile := "results.txt"       // File to write results to
+
+	file, err := os.Create(outputFile)
+	if err != nil {
+		fmt.Println("Error creating output file:", err)
+		return
+	}
+	defer file.Close()
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return
+	}
+
+	for _, f := range files {
+		if filepath.Ext(f.Name()) == ".sgf" {
+			filePath := filepath.Join(dir, f.Name())
+			processSGF(filePath, file)
+		}
+	}
+
+	fmt.Println("All files processed. Results are in", outputFile)
+}
+
+func processSGF(filePath string, outputFile *os.File) {
+	board, result := sgf.ParseSGF(filePath)
+	fmt.Fprintln(outputFile, "Final Board State:")
 	for _, row := range board {
 		fmt.Println(row)
 	}
-	fmt.Println("Result:", result)
+	fmt.Fprintln(outputFile, "Result:", result)
 	strings := make([]models.String, 0)
 	visited := make([][]bool, len(board))
 	for i := range visited {
@@ -42,9 +72,9 @@ func main() {
 	blackScore, whiteScore = 0, 0
 	komi := 6.5
 
-	fmt.Println("Grouped Strings:")
+	//fmt.Println("Grouped Strings:")
 	var aliveGroups []models.Group
-	for idx, group := range groups {
+	for _, group := range groups {
 		totalEyes, totalLiberties, totalTerritory := 0, 0, 0
 		sekiDetected := goban.CheckForSeki([]models.Group{group}, board)
 		snapBackDetected := false
@@ -53,7 +83,7 @@ func main() {
 			for j := i + 1; j < len(group.Strings); j++ {
 				if goban.CheckForSnapBack(group.Strings[i], group.Strings[j], board) {
 					snapBackDetected = true
-					fmt.Printf("Snapback detected between strings at indices %d and %d\n", i, j)
+					//fmt.Printf("Snapback detected between strings at indices %d and %d\n", i, j)
 				}
 			}
 		}
@@ -77,7 +107,7 @@ func main() {
 			stability = 100
 		}
 
-		fmt.Printf("Group %d: Stability: %.2f, Territory: %d, Eyes: %d, Liberties: %d\n", idx+1, stability, totalTerritory, totalEyes, totalLiberties)
+		//fmt.Printf("Group %d: Stability: %.2f, Territory: %d, Eyes: %d, Liberties: %d\n", idx+1, stability, totalTerritory, totalEyes, totalLiberties)
 		if stability == 100 {
 			aliveGroups = append(aliveGroups, group)
 		}
@@ -85,20 +115,21 @@ func main() {
 
 	whiteScore += komi
 
-	fmt.Println("Final Influence Map after Dilation and Erosion:")
+	fmt.Fprintln(outputFile, "Final Influence Map after Dilation and Erosion:")
 	for _, line := range influence {
 		fmt.Println(line)
 	}
 
-	fmt.Println("Surviving Groups After Stability Checks:")
-	for idx := range aliveGroups {
-		fmt.Printf("Group %d: Survived\n", idx+1)
-	}
+	//fmt.Println("Surviving Groups After Stability Checks:")
+	//for idx := range aliveGroups {
+	//fmt.Printf("Group %d: Survived\n", idx+1)
+	//}
 
-	fmt.Printf("Final Scores - Black: %.2f, White: %.2f\n", blackScore, whiteScore)
+	fmt.Fprintf(outputFile, "Final Scores - Black: %.2f, White: %.2f\n", blackScore, whiteScore)
 	if blackScore > whiteScore {
-		fmt.Println("Black wins!")
+		fmt.Fprintln(outputFile, "Black wins!")
 	} else {
-		fmt.Println("White wins!")
+		fmt.Fprintln(outputFile, "White wins!")
 	}
+	fmt.Fprintln(outputFile, "--------------------------------------------------\n")
 }
