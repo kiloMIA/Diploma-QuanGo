@@ -1,136 +1,98 @@
-import torch
-from torch.utils.data import DataLoader, random_split
-from torchvision.transforms import ToTensor
-import time
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
+import torch
+import time
+import pickle
+import logging
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from torch.nn import CrossEntropyLoss
+from torch.optim import Adam
 from tqdm import tqdm
+from goban_model import StoneClassifierCNN
+from dataset import GoBoardDataset
+from sklearn.metrics import accuracy_score
 
-from goban_model import create_model
-from dataset import GoBoardDataset, collate_fn
-
-
-def train(train_dataloader, model, optimizer, device, accumulation_steps):
-    model.train()
-    running_loss = 0
-    iteration_losses = []
-    progress_bar = tqdm(train_dataloader, desc='Training', leave=True)
-    optimizer.zero_grad()
-    for i, data in enumerate(progress_bar):
-        if not data:
-            continue
-        images, targets = data[0], data[1]
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        loss_dict = model(images, targets)
-        loss = sum(loss for loss in loss_dict.values())
-        loss = loss / accumulation_steps  
-        running_loss += loss.item()
-        iteration_losses.append(loss.item())
-        loss.backward()
-        if (i + 1) % accumulation_steps == 0:  
-            optimizer.step()
-            optimizer.zero_grad()
-        progress_bar.set_postfix({"loss": loss.item(), "left": len(train_dataloader) - (i + 1)})
-    train_loss = running_loss / len(train_dataloader.dataset)
-    return train_loss, iteration_losses
-
-
-def val(val_dataloader, model, device):
-    model.eval()
-    running_loss = 0
-    iteration_losses = []
-    progress_bar = tqdm(val_dataloader, desc='Validation', leave=True)
-    with torch.no_grad():
-        for i, data in enumerate(progress_bar):
-            if not data:  
-                continue
-            images, targets = data[0], data[1]
-            images = list(image.to(device) for image in images)
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-            outputs = model(images)
-            detected_boxes = sum(len(output['boxes']) for output in outputs)
-            true_boxes = sum(len(target['boxes']) for target in targets)
-            accuracy = detected_boxes / true_boxes if true_boxes > 0 else 0
-            iteration_losses.append(accuracy)
-            progress_bar.set_postfix({"accuracy": accuracy, "left": len(val_dataloader) - (i + 1)})
-    val_loss = sum(iteration_losses) / len(val_dataloader)
-    return val_loss, iteration_losses
-
-
-def plot_losses(train_losses, val_losses):
-    epochs = range(1, len(train_losses) + 1)
-    plt.figure(figsize=(10, 5))
-    plt.plot(epochs, train_losses, "b", label="Training loss")
-    plt.plot(epochs, val_losses, "r", label="Validation accuracy")
-    plt.title("Training and validation loss/accuracy")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss/Accuracy")
-    plt.legend()
-    plt.show()
-
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
 
 def main():
-    dataset = GoBoardDataset("archive/dataset", transforms=ToTensor())
+    BASE_PATH = "archive/dataset"
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    PIN_MEMORY = True if DEVICE == "cuda" else False
+    MEAN = [0.485, 0.456, 0.406]
+    STD = [0.229, 0.224, 0.225]
+    INIT_LR = 1e-4
+    NUM_EPOCHS = 10
+    BATCH_SIZE = 4
 
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    logger.info("Loading dataset...")
 
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn
-    )
-    test_dataloader = DataLoader(
-        test_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn
-    )
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=MEAN, std=STD)
+    ])
 
-    num_classes = 3
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    model = create_model(num_classes, weights='DEFAULT').to(device)
+    trainDS = GoBoardDataset(root=BASE_PATH, transforms=transform)
+    testDS = GoBoardDataset(root=BASE_PATH, transforms=transform)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=0.0005)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+    logger.info(f"Total training samples: {len(trainDS)}")
+    logger.info(f"Total test samples: {len(testDS)}")
 
-    num_epochs = 10
-    accumulation_steps = 5
-    train_losses = []
-    val_losses = []
-    iteration_log = []
+    trainLoader = DataLoader(trainDS, batch_size=BATCH_SIZE, shuffle=True, num_workers=os.cpu_count(), pin_memory=PIN_MEMORY, collate_fn=collate_fn)
+    testLoader = DataLoader(testDS, batch_size=BATCH_SIZE, num_workers=os.cpu_count(), pin_memory=PIN_MEMORY, collate_fn=collate_fn)
 
-    for epoch in range(num_epochs):
-        start = time.time()
-        train_loss, train_iteration_losses = train(train_dataloader, model, optimizer, device, accumulation_steps)
-        val_loss, val_iteration_losses = val(test_dataloader, model, device)
-        scheduler.step()
-        print(f"Epoch #{epoch} train_loss: {train_loss}, val_loss: {val_loss}")
-        end = time.time()
-        print(f"Time spent {round((end - start) / 60, 1)} minutes on epoch {epoch}")
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
+    model = StoneClassifierCNN().to(DEVICE)
+    criterion = CrossEntropyLoss()
+    optimizer = Adam(model.parameters(), lr=INIT_LR)
 
-        iteration_log.append({
-            "epoch": epoch,
-            "train_iteration_losses": train_iteration_losses,
-            "val_iteration_losses": val_iteration_losses
-        })
+    logger.info("Training the network...")
+    startTime = time.time()
 
-    torch.save(model.state_dict(), "go_stone_detector.pth")
+    for epoch in range(NUM_EPOCHS):
+        model.train()
+        running_loss = 0.0
+        train_correct = 0
 
-    losses_df = pd.DataFrame(
-        {
-            "Epoch": range(1, num_epochs + 1),
-            "Train Loss": train_losses,
-            "Val Loss": val_losses,
-        }
-    )
-    losses_df.to_csv("training_losses.csv", index=False)
+        logger.info(f"Starting epoch {epoch + 1}/{NUM_EPOCHS}")
 
-    iteration_df = pd.DataFrame(iteration_log)
-    iteration_df.to_csv("iteration_losses.csv", index=False)
+        for images, annotations in tqdm(trainLoader):
+            images = images.to(DEVICE)
+            annotations = annotations.to(DEVICE)
 
-    plot_losses(train_losses, val_losses)
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, annotations)
+            loss.backward()
+            optimizer.step()
 
+            running_loss += loss.item()
+            train_correct += (outputs.argmax(1) == annotations).type(torch.float).sum().item()
+
+        avg_train_loss = running_loss / len(trainLoader)
+        train_accuracy = train_correct / (len(trainDS) * 19 * 19)
+
+        logger.info(f"Epoch {epoch + 1}/{NUM_EPOCHS} - Train Loss: {avg_train_loss:.6f}, Train Accuracy: {train_accuracy:.4f}")
+
+    endTime = time.time()
+    logger.info(f"Total time taken to train the model: {endTime - startTime:.2f}s")
+
+    logger.info("Saving object detector model...")
+    torch.save(model.state_dict(), "output/detector.pth")
+
+    logger.info("Saving label encoder...")
+    with open("output/le.pickle", "wb") as f:
+        f.write(pickle.dumps(None))
+
+    logger.info("Training complete!")
+
+def collate_fn(batch):
+    batch = list(filter(lambda x: x is not None, batch))
+    if len(batch) == 0:
+        return None
+    images, targets = zip(*batch)
+    return torch.stack(images, 0), torch.stack(targets, 0)
 
 if __name__ == "__main__":
     main()

@@ -3,7 +3,6 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
-
 class GoBoardDataset(Dataset):
     def __init__(self, root, transforms=None):
         self.root = root
@@ -19,9 +18,7 @@ class GoBoardDataset(Dataset):
                 for file in sorted(os.listdir(folder_path)):
                     if any(file.endswith(ext) for ext in self.image_extensions):
                         img_path = os.path.join(folder_path, file)
-                        ann_path = os.path.join(
-                            folder_path, file.rsplit(".", 1)[0] + ".txt"
-                        )
+                        ann_path = os.path.join(folder_path, file.rsplit(".", 1)[0] + ".txt")
                         if os.path.exists(ann_path):
                             data.append((img_path, ann_path))
         return data
@@ -33,36 +30,18 @@ class GoBoardDataset(Dataset):
         img_path, ann_path = self.data[idx]
 
         img = Image.open(img_path).convert("RGB")
-        boxes = []
-        labels = []
+        annotation = []
 
         with open(ann_path) as f:
             lines = f.readlines()
-            for i, line in enumerate(lines):
+            for line in lines:
                 tokens = line.split()
-                for j, token in enumerate(tokens):
-                    if token == "B" or token == "W":
-                        x_min = j * 32
-                        y_min = i * 32
-                        x_max = (j + 1) * 32
-                        y_max = (i + 1) * 32
-                        boxes.append([x_min, y_min, x_max, y_max])
-                        labels.append(1 if token == "B" else 2)
+                annotation.extend(tokens)
 
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-
-        if len(boxes) == 0:
-            return None
-
-        target = {"boxes": boxes, "labels": labels}
+        annotation = torch.as_tensor([1 if x == 'B' else 2 if x == 'W' else 0 for x in annotation], dtype=torch.long).reshape(19, 19)
 
         if self.transforms is not None:
             img = self.transforms(img)
 
-        return img, target
+        return img, annotation
 
-
-def collate_fn(batch):
-    batch = list(filter(lambda x: x is not None, batch))
-    return tuple(zip(*batch))

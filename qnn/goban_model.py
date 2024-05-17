@@ -1,14 +1,26 @@
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+import torch.nn as nn
+import torch.nn.functional as F
 
-def create_model(num_classes, weights='DEFAULT'):
-    weights_enum = None
-    if weights == 'DEFAULT':
-        weights_enum = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-    else:
-        weights_enum = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.COCO_V1
+class StoneClassifierCNN(nn.Module):
+    def __init__(self):
+        super(StoneClassifierCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(128 * 28 * 28, 512)
+        self.fc2 = nn.Linear(512, 19 * 19 * 3)  
 
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=weights_enum)
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    return model
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, 2)
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2)
+        x = F.relu(self.conv3(x))
+        x = F.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        x = x.view(-1, 3, 19, 19)
+        return x
+
+
