@@ -17,6 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger()
 
 def main():
+    OUTPUT_PATH = "output"
     BASE_PATH = "archive/dataset"
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     PIN_MEMORY = True if DEVICE == "cuda" else False
@@ -25,6 +26,9 @@ def main():
     INIT_LR = 1e-4
     NUM_EPOCHS = 10
     BATCH_SIZE = 4
+    
+    if not os.path.exists(OUTPUT_PATH):
+        os.makedirs(OUTPUT_PATH)
 
     logger.info("Loading dataset...")
 
