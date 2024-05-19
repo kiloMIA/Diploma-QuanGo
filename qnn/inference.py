@@ -25,10 +25,16 @@ def preprocess_image(image_path, mean, std):
     return transform(image).unsqueeze(0)
 
 def decode_predictions(preds):
+ 
     board = preds.argmax(1).cpu().numpy().reshape(19, 19)
+    
+   
     char_board = np.full(board.shape, '.', dtype=str)
-    char_board[board == 1] = 'W'
-    char_board[board == 2] = 'B'
+    
+    char_board[board == 0] = '.'  
+    char_board[board == 1] = 'B'  
+    char_board[board == 2] = 'W'  
+    
     return char_board
 
 def load_annotations(annotation_path):
@@ -57,7 +63,7 @@ def main():
     logger.info("Loading model...")
     model = load_model(MODEL_PATH, DEVICE)
 
-    base_folder = "archive/dataset"
+    base_folder = "archive"
 
     for root, _, files in os.walk(base_folder):
         for file in files:
