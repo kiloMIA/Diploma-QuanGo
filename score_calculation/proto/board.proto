@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = ".";
+
+service BoardService {
+  rpc SendBoard (BoardRequest) returns (ScoreReply) {}
+}
+
+message BoardRequest {
+  repeated string board = 1; 
+  int32 size = 2;            
+  int32 black_prisoners = 3; 
+  int32 white_prisoners = 4; 
+  float komi = 5;            
+}
+
+message ScoreReply {
+  float black_score = 1;
+  float white_score = 2;
+  string winner = 3;
+}
+

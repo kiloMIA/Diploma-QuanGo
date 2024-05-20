@@ -25,10 +25,7 @@ def preprocess_image(image_path, mean, std):
     return transform(image).unsqueeze(0)
 
 def decode_predictions(preds):
- 
     board = preds.argmax(1).cpu().numpy().reshape(19, 19)
-    
-   
     char_board = np.full(board.shape, '.', dtype=str)
     
     char_board[board == 0] = '.'  

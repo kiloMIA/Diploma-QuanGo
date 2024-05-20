@@ -1,14 +1,19 @@
 version: '3.8'
 
 services:
-  image_processing:
-    build: ./image_processing
-    volumes:
-      - ./image_processing:/app
-    depends_on:
-      - score_calculation
-
-  score_calculation:
-    build: ./score_calculation
+  go-service:
+    build:
+      context: ./score_calculation
+      dockerfile: Dockerfile
     ports:
       - "50051:50051"
+
+  fastapi-service:
+    build:
+      context: ./qnn
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - go-service
+
