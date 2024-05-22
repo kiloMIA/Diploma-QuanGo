@@ -41,7 +41,7 @@ def decode_predictions(preds):
 
 
 async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
-    async with grpc.aio.insecure_channel("localhost:50051") as channel:
+    async with grpc.aio.insecure_channel("go-service:50051") as channel:
         stub = pb2_grpc.BoardServiceStub(channel)
         board_list = board.flatten().tolist()
         request = pb2.BoardRequest(

@@ -1,4 +1,3 @@
-# train.py
 import os
 import torch
 import time
@@ -25,7 +24,7 @@ def train():
     MEAN = [0.485, 0.456, 0.406]
     STD = [0.229, 0.224, 0.225]
     INIT_LR = 1e-4
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 32
     BATCH_SIZE = 4
 
     if not os.path.exists(OUTPUT_PATH):
