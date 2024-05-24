@@ -30,7 +30,7 @@ func CalculateScore(board models.Board, blackPrisoners, whitePrisoners int, komi
 
 	// Initialize scores
 	var blackScore, whiteScore float64
-	blackScore, whiteScore = float64(blackPrisoners), float64(whitePrisoners)+komi
+	blackScore, whiteScore = float64(whitePrisoners), float64(blackPrisoners)+komi
 
 	var aliveGroups []models.Group
 	for _, group := range groups {

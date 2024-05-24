@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 import grpc
 import board_pb2 as pb2
 import board_pb2_grpc as pb2_grpc
@@ -58,9 +58,9 @@ async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
 @app.post("/process-image/")
 async def process_image(
     image: UploadFile = File(...),
-    black_prisoners: int = 0,
-    white_prisoners: int = 0,
-    komi: float = 6.5,
+    black_prisoners: int = Form(0),
+    white_prisoners: int = Form(0),
+    komi: float = Form(6.5),
 ):
     image = preprocess_image(image.file).to(DEVICE)
 
