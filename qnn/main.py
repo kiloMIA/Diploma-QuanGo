@@ -55,7 +55,6 @@ async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
             komi=komi,
         )
         logging.info(f"Sending board to Go backend:\n{board}")
-        print(f"Sending board to Go backend:\n{board}")
         response = await stub.SendBoard(request)
         return response
 
@@ -63,14 +62,11 @@ async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
 @app.post("/process-image/")
 async def process_image(
     image: UploadFile = File(...),
-    black_prisoners: int = Form(0),
-    white_prisoners: int = Form(0),
-    komi: float = Form(6.5),
+    black_prisoners: int = Form(),
+    white_prisoners: int = Form(),
+    komi: float = Form(),
 ):
     logging.info(
-        f"Received black_prisoners: {black_prisoners}, white_prisoners: {white_prisoners}, komi: {komi}"
-    )
-    print(
         f"Received black_prisoners: {black_prisoners}, white_prisoners: {white_prisoners}, komi: {komi}"
     )
     image = preprocess_image(image.file).to(DEVICE)
@@ -80,14 +76,12 @@ async def process_image(
 
     board_state = decode_predictions(preds)
     logging.info(f"Decoded board state:\n{board_state}")
-    print(f"Decoded board state:\n{board_state}")
 
     response = await send_to_go_backend(
         board_state, black_prisoners, white_prisoners, komi
     )
 
     logging.info(f"Received response: {response}")
-    print(f"Received response: {response}")
     return {
         "black_score": response.black_score,
         "white_score": response.white_score,
