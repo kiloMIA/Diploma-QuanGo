@@ -7,6 +7,7 @@ import torch
 from torchvision import transforms
 from goban_model import StoneClassifierCNN
 import numpy as np
+import logging
 
 app = FastAPI()
 
@@ -17,6 +18,8 @@ STD = [0.229, 0.224, 0.225]
 model = StoneClassifierCNN().to(DEVICE)
 model.load_state_dict(torch.load("output/detector.pth", map_location=DEVICE))
 model.eval()
+
+logging.basicConfig(level=logging.INFO)
 
 
 def preprocess_image(image):
@@ -51,6 +54,7 @@ async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
             white_prisoners=white_prisoners,
             komi=komi,
         )
+        logging.info(f"Sending board to Go backend:\n{board}")
         response = await stub.SendBoard(request)
         return response
 
@@ -62,17 +66,22 @@ async def process_image(
     white_prisoners: int = Form(0),
     komi: float = Form(6.5),
 ):
+    logging.info(
+        f"Received black_prisoners: {black_prisoners}, white_prisoners: {white_prisoners}, komi: {komi}"
+    )
     image = preprocess_image(image.file).to(DEVICE)
 
     with torch.no_grad():
         preds = model(image)
 
     board_state = decode_predictions(preds)
+    logging.info(f"Decoded board state:\n{board_state}")
 
     response = await send_to_go_backend(
         board_state, black_prisoners, white_prisoners, komi
     )
 
+    logging.info(f"Received response: {response}")
     return {
         "black_score": response.black_score,
         "white_score": response.white_score,

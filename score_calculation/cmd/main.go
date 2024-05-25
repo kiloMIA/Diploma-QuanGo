@@ -33,6 +33,8 @@ func (s *server) SendBoard(ctx context.Context, req *pb.BoardRequest) (*pb.Score
 		winner = "White"
 	}
 
+	log.Printf("Calculated scores - Black: %f, White: %f, Winner: %s", blackScore, whiteScore, winner)
+
 	return &pb.ScoreReply{
 		BlackScore: float32(blackScore),
 		WhiteScore: float32(whiteScore),
@@ -52,3 +54,4 @@ func main() {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
+
