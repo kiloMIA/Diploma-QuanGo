@@ -62,9 +62,9 @@ async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
 @app.post("/process-image/")
 async def process_image(
     image: UploadFile = File(...),
-    black_prisoners: int = Form(),
-    white_prisoners: int = Form(),
-    komi: float = Form(),
+    black_prisoners: int = Form(default=0),
+    white_prisoners: int = Form(default=0),
+    komi: float = Form(default=6.5),
 ):
     logging.info(
         f"Received black_prisoners: {black_prisoners}, white_prisoners: {white_prisoners}, komi: {komi}"
