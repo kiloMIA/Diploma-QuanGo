@@ -1,13 +1,19 @@
-from fastapi import FastAPI, File, UploadFile, Form
-import grpc
-import board_pb2 as pb2
-import board_pb2_grpc as pb2_grpc
+from datetime import datetime
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.responses import Response
 from PIL import Image
+from starlette.responses import JSONResponse
+import grpc
+import io
+import logging
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torchvision import transforms
 from goban_model import StoneClassifierCNN
-import numpy as np
-import logging
+from bouzy import initialize_influence, erosion, dilation
+import board_pb2 as pb2
+import board_pb2_grpc as pb2_grpc
 
 app = FastAPI()
 
@@ -43,6 +49,23 @@ def decode_predictions(preds):
     return char_board
 
 
+def plot_influence_map(influence_map):
+    normalized_influence = np.abs(influence_map) / np.max(np.abs(influence_map))
+
+    influence_image = np.zeros((influence_map.shape[0], influence_map.shape[1], 3))
+    influence_image[:, :, 2] = (influence_map > 0) * normalized_influence
+    influence_image[:, :, 0] = (influence_map < 0) * normalized_influence
+
+    plt.figure(figsize=(8, 8))
+    plt.imshow(influence_image, interpolation="nearest")
+    plt.title("Influence Map")
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close()
+    return buf
+
+
 async def send_to_go_backend(board, black_prisoners, white_prisoners, komi):
     async with grpc.aio.insecure_channel("go-service:50051") as channel:
         stub = pb2_grpc.BoardServiceStub(channel)
@@ -69,10 +92,10 @@ async def process_image(
     logging.info(
         f"Received black_prisoners: {black_prisoners}, white_prisoners: {white_prisoners}, komi: {komi}"
     )
-    image = preprocess_image(image.file).to(DEVICE)
+    image_data = preprocess_image(image.file).to(DEVICE)
 
     with torch.no_grad():
-        preds = model(image)
+        preds = model(image_data)
 
     board_state = decode_predictions(preds)
     logging.info(f"Decoded board state:\n{board_state}")
@@ -82,8 +105,33 @@ async def process_image(
     )
 
     logging.info(f"Received response: {response}")
-    return {
+
+    influence = initialize_influence(board_state)
+    dilation(board_state, influence, 8)
+    erosion(influence, 21)
+    image_buf = plot_influence_map(influence)
+
+    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{image.filename}"
+
+    json_response = {
         "black_score": response.black_score,
         "white_score": response.white_score,
         "winner": response.winner,
     }
+
+    return Response(
+        content=(
+            b"--myboundary\r\n"
+            b'Content-Disposition: form-data; name="json"\r\n'
+            b"Content-Type: application/json\r\n\r\n"
+            + JSONResponse(content=json_response).body
+            + b"\r\n--myboundary\r\n"
+            b'Content-Disposition: form-data; name="image"; filename="'
+            + unique_filename.encode()
+            + b'"\r\n'
+            b"Content-Type: image/png\r\n\r\n"
+            + image_buf.getvalue()
+            + b"\r\n--myboundary--\r\n"
+        ),
+        media_type="multipart/form-data; boundary=myboundary",
+    )

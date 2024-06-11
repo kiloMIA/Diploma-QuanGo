@@ -3,4 +3,4 @@ fastapi
 uvicorn
 grpcio
 grpcio-tools
-
+matplotlib
