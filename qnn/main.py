@@ -1,11 +1,11 @@
 from datetime import datetime
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse
 from PIL import Image
-from starlette.responses import JSONResponse
 import grpc
 import io
 import logging
+import base64
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -112,26 +112,14 @@ async def process_image(
     image_buf = plot_influence_map(influence)
 
     unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{image.filename}"
+    image_base64 = base64.b64encode(image_buf.getvalue()).decode('utf-8')
 
     json_response = {
         "black_score": response.black_score,
         "white_score": response.white_score,
         "winner": response.winner,
+        "influence_map": image_base64,
     }
 
-    return Response(
-        content=(
-            b"--myboundary\r\n"
-            b'Content-Disposition: form-data; name="json"\r\n'
-            b"Content-Type: application/json\r\n\r\n"
-            + JSONResponse(content=json_response).body
-            + b"\r\n--myboundary\r\n"
-            b'Content-Disposition: form-data; name="image"; filename="'
-            + unique_filename.encode()
-            + b'"\r\n'
-            b"Content-Type: image/png\r\n\r\n"
-            + image_buf.getvalue()
-            + b"\r\n--myboundary--\r\n"
-        ),
-        media_type="multipart/form-data; boundary=myboundary",
-    )
+    return JSONResponse(content=json_response)
+
